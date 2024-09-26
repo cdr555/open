@@ -6,8 +6,8 @@ a = cv2.imread('/Users/itlc00011/Desktop/rr/Test/aa.jpeg')
 
 # print(a.shape)
 
-# 确保 b 的形状与 a 相同
-# b = np.ones(a.shape,np.uint8) * 200
+#确保 b 的形状与 a 相同
+b = np.ones(a.shape,np.uint8) * 200
 b = cv2.imread('/Users/itlc00011/Desktop/rr/Test/111.png')
 
 cv2.imshow('a',a)

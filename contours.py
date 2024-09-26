@@ -19,13 +19,14 @@ else:
     # 创建一个空白图像用于绘制轮廓
     dst2 = np.zeros_like(img)
 
-    # 绘制轮廓
+    # 绘制轮廓 (img,contours,-1绘制所有轮廓,颜色，线宽)
     # cv2.drawContours(dst2, contours, -1, (255, 255, 255), 5)
 
-
+    # 绘制轮廓并计算面积和周长
     for contour in contours:
         cv2.drawContours(dst2, [contour], -1, (255, 255, 255), 1)
         area = cv2.contourArea(contour)
+        # True 表示闭合的轮廓, False 表示开放的轮廓
         perimeter = cv2.arcLength(contour, True)
         print(f"Contour area: {area}, Perimeter: {perimeter}")
 

@@ -8,7 +8,11 @@ img = cv2.imread('/Users/itlc00011/Desktop/rr/Test/b2.png', 0)
 # kernel = np.zeros((11, 11), np.uint8)
 # print(kernel)
 
+# cv2.MORPH_RECT:矩形
+# cv2.MORPH_ELLIPSE:椭圆形
+# cv2.MORPH_CROSS:十字形
 kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(15,15))
+#(结构元素形状,核的大小,锚点)
 print(kernel)
 
 # # 应用腐蚀操作

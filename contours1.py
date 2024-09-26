@@ -37,8 +37,10 @@ for contour in contours:
     
     # 最小外接矩形
     rect = cv2.minAreaRect(contour)
+    # 获取矩形的四个顶点坐标
     box = cv2.boxPoints(rect)
     box = np.int0(box)
+    # 绘制矩形,0表示绘制所有轮廓,颜色，线宽 
     cv2.drawContours(dst6, [box], 0, (255, 255, 255), 1)
     
     # 计算面积和周长

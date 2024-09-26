@@ -23,7 +23,7 @@ d2 = cv2.Sobel(img,cv2.CV_64F,0,1,ksize=3)
 #d3 = cv2.Laplacian(img,cv2.CV_64F,ksize=5)
 
 # 合并Sobel 结果
-dst = cv2.add(d1 + d2)
+dst = cv2.add(d1 , d2)
 
 cv2.imshow('img',img)
 cv2.imshow('d1',d1)

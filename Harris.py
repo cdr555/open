@@ -19,7 +19,7 @@ img3 = cv2.cornerHarris(gray, 5, 3, 0.04)
 img3 = cv2.dilate(img3, None)
 
 # 设置阈值并标记角点
-img[img3 > 0.05 * img3.max()] = [0, 0, 255]
+img[img3 > 0.5 * img3.max()] = [0, 0, 255]
 
 # 显示结果
 cv2.imshow('Harris Corners', img)
