@@ -12,7 +12,7 @@ print(gray.shape)
 img1 = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
 img2 = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
 
-# 计算 Harris 角点
+# 计算 Harris 角点 (灰度图像, 窗口大小, Sobel 梯度, Harris 角点检测参数)
 img3 = cv2.cornerHarris(gray, 5, 3, 0.04)
 
 # 扩展角点标记
