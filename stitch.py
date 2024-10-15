@@ -7,6 +7,9 @@ import pillow_heif
 pillow_heif.register_heif_opener()
 
 # 读取图像
+# a = cv2.imread('/Users/itlc00011/Desktop/rr/Test/IMG_1184.jpg')
+# b = cv2.imread('/Users/itlc00011/Desktop/rr/Test/IMG_1185.jpg')// false
+
 a_path = '/Users/itlc00011/Desktop/rr/Test/left.heic'
 b_path = '/Users/itlc00011/Desktop/rr/Test/right.heic'
 try:
@@ -18,8 +21,6 @@ except Exception as e:
     print(f"Error: Image at {b_path} did not load correctly. Exception: {e}")
     exit()
 
-# img1 = cv2.imread('/Users/itlc00011/Desktop/rr/Test/IMG_1184.jpg')
-# img2 = cv2.imread('/Users/itlc00011/Desktop/rr/Test/IMG_1185.jpg')
 
 # 转换为灰度图像
 gray1 = cv2.cvtColor(a, cv2.COLOR_BGR2GRAY)
