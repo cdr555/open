@@ -1,0 +1,19 @@
+{
+  "name": "bitmap-to-vector",
+  "version": "1.0.0",
+  "description": "将位图转换为矢量图的工具",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "simple": "node examples/simple.js",
+    "color": "node examples/color.js",
+    "batch": "node examples/batch.js"
+  },
+  "dependencies": {
+    "potrace": "^2.1.8",
+    "jimp": "^0.22.10",
+    "fs-extra": "^11.1.1"
+  },
+  "author": "",
+  "license": "MIT"
+} 
