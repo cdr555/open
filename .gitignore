@@ -8,3 +8,7 @@ js/node_modules/
 
 # Output
 output/
+
+# AItest
+AItest/yolo-env/
+AItest/.venv/
