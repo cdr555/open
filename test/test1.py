@@ -1,5 +1,5 @@
 import cv2
-
+#####
 cv2.namedWindow('test1',cv2.WINDOW_AUTOSIZE)
 
 cap = cv2.VideoCapture(0)
