@@ -7,7 +7,7 @@ class Entity
     virtual std::string GetName() { return "Entity"; }
 };
 
-
+// 继承
 class Player : public Entity
 {
     private:
