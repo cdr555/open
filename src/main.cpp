@@ -5,13 +5,13 @@
 int main() {
     try {
         // 指定配置文件路径
-        std::string config_path = "config/s2t.json";
+        std::string config_path = "config/t2s.json";
         
         // 创建简体到繁体转换器
         opencc::SimpleConverter converter(config_path);
         
         // 要转换的文本
-        std::string input = "这是一个OpenCC示例程序";
+        std::string input = "這是一個OpenCC示例程序";
         
         // 进行转换
         std::string converted = converter.Convert(input);
