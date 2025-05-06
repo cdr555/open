@@ -12,3 +12,9 @@ output/
 # AItest
 AItest/yolo-env/
 AItest/.venv/
+
+# build
+build/
+
+# bin
+bin/
