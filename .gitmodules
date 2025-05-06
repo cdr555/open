@@ -1,3 +1,6 @@
 [submodule "submodules/opencc"]
 	path = submodules/opencc
 	url = https://github.com/BYVoid/OpenCC.git
+[submodule "submodules/my-module"]
+	path = submodules/my-module
+	url = git@github.com:cdr555/my-module.git
