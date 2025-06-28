@@ -1,0 +1,87 @@
+{
+  "name": "vscode-namespace-checker",
+  "displayName": "命名空间查重器",
+  "description": "检查C++代码中命名空间是否与仓库中其他代码重复",
+  "version": "1.0.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cdr555/vscode-namespace-checker"
+  },
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters"
+  ],
+  "activationEvents": [
+    "onLanguage:cpp",
+    "onLanguage:c"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "namespace-checker.checkNamespace",
+        "title": "检查命名空间重复"
+      },
+      {
+        "command": "namespace-checker.checkRemoteNamespace",
+        "title": "与远程仓库代码检查命名空间重复"
+      },
+      {
+        "command": "namespace-checker.checkContent",
+        "title": "检查代码内容重复"
+      }
+    ],
+    "configuration": {
+      "title": "命名空间查重器",
+      "properties": {
+        "namespaceChecker.searchPaths": {
+          "type": "array",
+          "default": [
+            "src",
+            "include"
+          ],
+          "description": "要搜索的代码目录"
+        },
+        "namespaceChecker.remoteRepos": {
+          "type": "array",
+          "default": [],
+          "description": "要自动查重的远程仓库URL列表"
+        },
+        "namespaceChecker.updateInterval": {
+          "type": "number",
+          "default": 500,
+          "description": "实时检测更新间隔（毫秒）"
+        },
+        "namespaceChecker.enableContentCheck": {
+          "type": "boolean",
+          "default": true,
+          "description": "是否开启代码内容查重功能"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "keywords": [
+    "namespace",
+    "cpp",
+    "duplicate",
+    "content-check"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^18.15.0",
+    "@types/vscode": "^1.60.0",
+    "typescript": "^4.9.5",
+    "vsce": "^2.15.0"
+  }
+}

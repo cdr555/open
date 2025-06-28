@@ -14,7 +14,7 @@ if hasDoorKey || knowsOverridePassword {
     print("ACCESS DENIED")
 }
 
-// 复合条件 显示括号(enteredDoorCode && passedRetinaScan) || hasDoorKey || knowsOverridePassword
+// 复合条件 显式括号(enteredDoorCode && passedRetinaScan) || hasDoorKey || knowsOverridePassword
 if (enteredDoorCode && passedRetinaScan) || hasDoorKey || knowsOverridePassword {
     print("Welcome!")
 } else {
