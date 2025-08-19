@@ -1,5 +1,8 @@
 #!/bin/bash
 
+
+
+
 # 设置Git仓库的目录
 REPO_DIR=$(pwd)
 
