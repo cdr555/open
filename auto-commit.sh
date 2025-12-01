@@ -6,6 +6,62 @@ REPO_DIR=$(pwd)
 # 进入Git仓库目录
 cd "$REPO_DIR"
 
+# 先递归初始化 & 更新所有 submodule，确保子仓库都在本地
+git submodule update --init --recursive
+
+# 递归遍历所有 submodule（子仓库中的子仓库也会一起遍历）
+git submodule foreach --recursive '
+  echo "进入子模块: $name ($path)"
+
+  # 清理子模块可能存在的 git lock 文件
+  if [ -f ".git/index.lock" ]; then
+      echo "  清理子模块 git index.lock 文件..."
+      rm -f .git/index.lock
+  fi
+
+  # 确保只在 main/master 分支上提交
+  current_branch=$(git rev-parse --abbrev-ref HEAD)
+  if [ "$current_branch" = "HEAD" ]; then
+      # detached HEAD，尝试切到 main 或 master
+      if git show-ref --verify --quiet refs/heads/main; then
+          target_branch=main
+      elif git show-ref --verify --quiet refs/heads/master; then
+          target_branch=master
+      else
+          echo "  找不到 main/master 分支，跳过该子模块"
+          exit 0
+      fi
+      echo "  当前为 detached HEAD，切换到 $target_branch 分支"
+      git checkout "$target_branch"
+      git pull --ff-only || git pull --rebase
+  else
+      # 已在某个分支上，如果不是 main/master 就跳过
+      if [ "$current_branch" != "main" ] && [ "$current_branch" != "master" ]; then
+          echo "  当前分支为 $current_branch（非 main/master），跳过该子模块"
+          exit 0
+      fi
+      echo "  当前分支为 $current_branch，先同步远程"
+      git pull --ff-only || git pull --rebase
+  fi
+
+  # 检查是否有变动（包含未跟踪文件）
+  if git diff --quiet; then
+      echo "  子模块无变动，跳过"
+  else
+      echo "  子模块有变动，开始自动提交..."
+      git add -A
+
+      msg="chore(auto-commit): 更新子模块 $name"
+      echo "  提交信息: $msg"
+
+      if git commit -m "$msg"; then
+          git push || echo "  push 失败，请手动处理"
+      else
+          echo "  没有可提交的变更"
+      fi
+  fi
+'
+
 # 检查是否有文件变动（不包括未跟踪的文件）
 if git diff-index --quiet HEAD --; then
     echo "没有变动，无需提交。"
