@@ -10,7 +10,7 @@ if img is None:
 else:
     print(img.shape)
 
-    # 应用二值化阈值
+    # 应用二值化阈值，像素值 > 100 → 置 0（黑）；否则 → 置 255（白）
     ret, dst = cv2.threshold(img, 100, 255, cv2.THRESH_BINARY_INV)
 
     # 查找轮廓

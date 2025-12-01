@@ -40,3 +40,12 @@ cv2.imshow('dst', dst)
 # cv2.imshow('dst2', dst2)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
+
+# 形态学运算（灰度/二值均可）
+# 腐蚀 cv2.erode(src,kernel,iterations)：取邻域最小值；白区域变细，小白噪点被去掉。
+# 膨胀 cv2.dilate(...)：取邻域最大值；白区域变粗，填小黑洞。
+# 开运算 MORPH_OPEN（先腐蚀后膨胀）：去小白噪、平滑边界，不明显改变面积。
+# 闭运算 MORPH_CLOSE（先膨胀后腐蚀）：填小黑洞、连通近邻白区。
+# 形态学梯度 MORPH_GRADIENT：膨胀减腐蚀，突出边缘。
+# 顶帽 MORPH_TOPHAT：原图减开运算，提取“比背景更亮、尺寸小于核”的亮细节。
+# 黑帽 MORPH_BLACKHAT：闭运算减原图，提取“比背景更暗、尺寸小于核”的暗细节
