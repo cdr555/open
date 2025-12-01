@@ -7,9 +7,6 @@ REPO_DIR=$(pwd)
 # 进入Git仓库目录
 cd "$REPO_DIR"
 
-# 先递归初始化 & 更新所有 submodule，确保子仓库都在本地
-git submodule update --init --recursive
-
 # 递归遍历所有 submodule（子仓库中的子仓库也会一起遍历）
 git submodule foreach --recursive '
   echo "进入子模块: $name ($path)"
