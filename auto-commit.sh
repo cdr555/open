@@ -7,6 +7,8 @@ REPO_DIR=$(pwd)
 # 进入Git仓库目录
 cd "$REPO_DIR"
 
+
+git submodule update --init --recursive
 # 递归遍历所有 submodule（子仓库中的子仓库也会一起遍历）
 git submodule foreach --recursive '
   echo "进入子模块: $name ($path)"
@@ -45,17 +47,26 @@ git submodule foreach --recursive '
 
   # 确保子模块的子模块也被初始化
   git submodule update --init --recursive
-
-  # 如有变动（包含子模块指针变化），则提交并推送
-  if ! git diff --quiet || ! git diff --cached --quiet; then
+ 
+  # 先将所有变更（含未跟踪）加入暂存区
+  git add -A
+ 
+  # 将下一级子模块指针变更也加入暂存区（+ 改变、U 冲突、- 未初始化）
+  changed_sub=$(git submodule status | awk '"'"'/^[+U-]/ {print $2}'"'"')
+  if [ -n "$changed_sub" ]; then
+    while IFS= read -r m; do
+      [ -z "$m" ] && continue
+      git add "$m"
+    done <<< "$changed_sub"
+  fi
+ 
+  # 若暂存区有内容则提交并推送
+  if ! git diff --cached --quiet; then
       echo "  子模块有变动，开始自动提交..."
-      git add -A
       msg="chore(auto-commit): 更新子模块 $name"
       echo "  提交信息: $msg"
       if git commit -m "$msg"; then
           git push || echo "  push 失败，请手动处理"
-      else
-          echo "  没有可提交的变更"
       fi
   else
       echo "  子模块无变动，跳过"
@@ -100,7 +111,7 @@ else
 
     # 检查顶层 submodule 指针是否变化（包含因为“子仓库中的子仓库”更新而导致的父级指针变化）
     # 符号含义：+ 工作树HEAD与记录的commit不同；U 冲突；- 未初始化
-    changed_modules=$(git submodule status | awk '/^\+|^U/ {print $2}')
+    changed_modules=$(git submodule status | awk '/^[+U-]/ {print $2}')
     if [[ -n "${changed_modules}" ]]; then
         module_names=""
         while IFS= read -r module; do
