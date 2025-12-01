@@ -73,6 +73,27 @@ git submodule foreach --recursive '
   fi
 '
 
+# 二次遍历：在子子模块更新/推送完成后，再次检查各级父子模块是否有“子模块指针变化”并提交推送
+git submodule foreach --recursive '
+  echo "二次提交检查: $name ($path)"
+  # 将可能遗漏的变更纳入暂存区
+  git add -A
+  changed_sub=$(git submodule status | awk '"'"'/^[+U-]/ {print $2}'"'"')
+  if [ -n "$changed_sub" ]; then
+    while IFS= read -r m; do
+      [ -z "$m" ] && continue
+      git add "$m"
+    done <<< "$changed_sub"
+  fi
+  if ! git diff --cached --quiet; then
+    msg="chore(auto-commit): 同步子模块指针 $name"
+    echo "  提交信息: $msg"
+    git commit -m "$msg" && git push || true
+  else
+    echo "  无需二次提交"
+  fi
+'
+
 # 检查是否有文件变动（不包括未跟踪的文件）
 if git diff-index --quiet HEAD --; then
     echo "没有变动，无需提交。"
