@@ -16,7 +16,10 @@ ROOT_BRANCH="main"
 SUB_REMOTE="origin"
 SUB_BRANCH="main"
 
-INIT_SUBMODULES=1
+# 是否初始化缺失的子模块：
+# 0: 不做任何 submodule update（推荐：避免覆盖你本地已前移的子模块指针）
+# 1: 仅初始化缺失的子模块（只处理 status 以 '-' 开头的条目，不会重置已初始化子模块的指针）
+INIT_SUBMODULES="${INIT_SUBMODULES:-1}"
 
 msg_join_cn() {
   # 用 '、' 拼接数组
@@ -50,6 +53,25 @@ cleanup_git_lock_if_any() {
 ensure_git_repo() {
   local dir="$1"
   git -C "$dir" rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "不是 git 仓库：$dir"
+}
+
+init_missing_submodules_only() {
+  local dir="$1"
+  ensure_git_repo "$dir"
+
+  local missing=()
+  # '-' 表示未初始化的子模块
+  while IFS= read -r p; do
+    [[ -n "$p" ]] && missing+=("$p")
+  done < <(git -C "$dir" submodule status --recursive 2>/dev/null | awk '/^-/{print $2}')
+
+  if [[ "${#missing[@]}" -eq 0 ]]; then
+    info "子模块已初始化，跳过 submodule update"
+    return 0
+  fi
+
+  info "初始化缺失子模块：${missing[*]}"
+  git -C "$dir" submodule update --init --recursive "${missing[@]}"
 }
 
 checkout_main_or_die() {
@@ -99,6 +121,42 @@ ensure_worktree_clean_or_die() {
   fi
 }
 
+ensure_only_submodule_pointer_changes_or_die() {
+  # 允许“仅子模块 gitlink 指针变化”，不允许其它文件改动
+  local dir="$1"
+  ensure_git_repo "$dir"
+
+  local porcelain
+  porcelain="$(git -C "$dir" status --porcelain)"
+  [[ -n "$porcelain" ]] || return 0
+
+  local ok=1
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    local path="${line:3}"
+
+    # 只允许“gitlink（mode 160000）”路径发生变化
+    # 例如：' M modules/cylindrical-correction'
+    local mode
+    mode="$(git -C "$dir" ls-files --stage -- "$path" 2>/dev/null | awk 'NR==1{print $1}' || true)"
+    if [[ "$mode" != "160000" ]]; then
+      ok=0
+      warn "$dir 存在非子模块指针改动：$line"
+    fi
+  done <<< "$porcelain"
+
+  [[ "$ok" -eq 1 ]] || die "$dir 工作区包含非子模块指针改动，已中止以避免误提交"
+}
+
+pull_rebase_best_effort() {
+  local dir="$1"
+  local remote="$2"
+  local branch="$3"
+  ensure_git_repo "$dir"
+  git -C "$dir" fetch "$remote" "$branch" >/dev/null 2>&1 || true
+  git -C "$dir" pull --ff-only "$remote" "$branch" >/dev/null 2>&1 || git -C "$dir" pull --rebase "$remote" "$branch" >/dev/null 2>&1 || true
+}
+
 commit_and_push_if_staged() {
   local dir="$1"
   local remote="$2"
@@ -128,8 +186,8 @@ main() {
   info "根仓库：$root"
 
   if [[ "$INIT_SUBMODULES" == "1" ]]; then
-    info "初始化/更新子模块（递归）"
-    git submodule update --init --recursive
+    info "仅初始化缺失子模块（不重置已前移的指针）"
+    init_missing_submodules_only "$root"
   fi
 
   # 1) 先处理一级子模块：提交其内部子模块（第二层）的指针更新
@@ -147,9 +205,10 @@ main() {
 
     ensure_git_repo "$root/$sm"
     checkout_main_or_die "$root/$sm" "$SUB_REMOTE" "$SUB_BRANCH"
+    pull_rebase_best_effort "$root/$sm" "$SUB_REMOTE" "$SUB_BRANCH"
 
-    # 需求假设：二级子模块工作区干净；但一级子模块本身也应干净（否则不清楚你想不想提交它的代码改动）
-    ensure_worktree_clean_or_die "$root/$sm"
+    # 这里允许“仅二级子模块指针变化”，以便把 gitlink 更新提交到一级子模块
+    ensure_only_submodule_pointer_changes_or_die "$root/$sm"
 
     local nested_bumped=()
     while IFS= read -r np; do
@@ -157,7 +216,7 @@ main() {
     done < <(list_bumped_submodules_in_repo "$root/$sm")
 
     if [[ "${#nested_bumped[@]}" -eq 0 ]]; then
-      info "$sm：未发现二级子模块指针更新（+），跳过"
+      info "[$sm] 未发现二级子模块指针更新(+)，跳过"
       continue
     fi
 
@@ -169,13 +228,14 @@ main() {
     local joined_nested
     joined_nested="$(msg_join_cn "${nested_bumped[@]}")"
     local msg_sub
-    msg_sub="chore(submodule): 更新二级子模块指针：${joined_nested}"
-    info "$sm：提交并推送 -> $SUB_REMOTE/$SUB_BRANCH"
+    msg_sub="chore(submodule): 更新二级子模块指针: ${joined_nested}"
+    info "[$sm] 提交并推送 -> $SUB_REMOTE/$SUB_BRANCH"
     commit_and_push_if_staged "$root/$sm" "$SUB_REMOTE" "$SUB_BRANCH" "$msg_sub"
   done
 
   # 2) 回到根仓库：提交一级子模块指针更新
   checkout_main_or_die "$root" "$ROOT_REMOTE" "$ROOT_BRANCH"
+  pull_rebase_best_effort "$root" "$ROOT_REMOTE" "$ROOT_BRANCH"
 
   # 根仓库允许有自己的文件改动，但本脚本只自动提交“一级子模块指针更新”
   local bumped_top=()
