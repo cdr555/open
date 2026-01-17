@@ -6,10 +6,10 @@ set -euo pipefail
 #    则把这些 gitlink 指针更新提交到该一级子模块的 origin/main，并 push。
 # 2) 回到根仓库：把一级子模块指针更新提交到根仓库的 origin/main，并 push。
 #
-# 约束/假设（来自你的需求）：
-# - 根仓库默认分支：main
-# - 一级子模块允许直接 push 到 main
-# - 子模块中的子模块（第二层）工作区一定是干净的：我们不进入第二层提交任何代码，只提交指针更新
+# 约束：
+# - 根仓库与一级子模块仓库均使用 origin/main
+# - 不做 rebase（只允许 fast-forward）
+# - 不允许在一级子模块中提交“非二级子模块指针（gitlink=160000）”的改动
 
 ROOT_REMOTE="origin"
 ROOT_BRANCH="main"
@@ -79,7 +79,8 @@ checkout_main_or_die() {
   local remote="$2"
   local branch="${3:-}"
   if [[ -z "$branch" ]]; then
-    die "函数 checkout_main_or_die 在 $dir 缺少分支参数"
+    warn "函数 checkout_main_or_die 在 $dir 缺少分支参数，跳过"
+    return 1
   fi
 
   ensure_git_repo "$dir"
@@ -90,13 +91,19 @@ checkout_main_or_die() {
   if git -C "$dir" show-ref --verify --quiet "refs/heads/${branch}"; then
     git -C "$dir" checkout "${branch}" >/dev/null 2>&1
   else
-    git -C "$dir" checkout -b "${branch}" "${remote}/${branch}" >/dev/null 2>&1 \
-      || die "无法在 $dir 切到 ${remote}/${branch}（远端分支可能不存在或无权限）"
+    git -C "$dir" checkout -b "${branch}" "${remote}/${branch}" >/dev/null 2>&1 || {
+      warn "无法在 $dir 切到 ${remote}/${branch}（远端分支可能不存在或无权限），跳过"
+      return 1
+    }
   fi
 
   local cur
   cur="$(git -C "$dir" rev-parse --abbrev-ref HEAD)"
-  [[ "$cur" != "HEAD" ]] || die "$dir 仍处于 detached HEAD，已终止以避免误操作"
+  if [[ "$cur" == "HEAD" ]]; then
+    warn "$dir 仍处于 detached HEAD，跳过"
+    return 1
+  fi
+  return 0
 }
 
 list_top_level_submodules() {
@@ -111,18 +118,8 @@ list_bumped_submodules_in_repo() {
   git -C "$dir" submodule status 2>/dev/null | awk '$1 ~ /^\+/ {print $2}'
 }
 
-ensure_worktree_clean_or_die() {
-  # 防止把意外改动带进“指针更新提交”
-  local dir="$1"
-  ensure_git_repo "$dir"
-
-  if [[ -n "$(git -C "$dir" status --porcelain)" ]]; then
-    die "$dir 工作区不干净（存在未提交/未暂存改动）。请先处理后再运行脚本。"
-  fi
-}
-
-ensure_only_submodule_pointer_changes_or_die() {
-  # 允许“仅子模块 gitlink 指针变化”，不允许其它文件改动
+ensure_only_submodule_pointer_changes_or_skip() {
+  # 仅允许 gitlink（mode 160000）变化；若存在其它文件改动则跳过（不报错）
   local dir="$1"
   ensure_git_repo "$dir"
 
@@ -145,16 +142,24 @@ ensure_only_submodule_pointer_changes_or_die() {
     fi
   done <<< "$porcelain"
 
-  [[ "$ok" -eq 1 ]] || die "$dir 工作区包含非子模块指针改动，已中止以避免误提交"
+  if [[ "$ok" -ne 1 ]]; then
+    warn "$dir 检测到非子模块指针改动，本次跳过自动提交"
+    return 1
+  fi
+  return 0
 }
 
-pull_rebase_best_effort() {
+pull_ff_only_or_skip() {
   local dir="$1"
   local remote="$2"
   local branch="$3"
   ensure_git_repo "$dir"
   git -C "$dir" fetch "$remote" "$branch" >/dev/null 2>&1 || true
-  git -C "$dir" pull --ff-only "$remote" "$branch" >/dev/null 2>&1 || git -C "$dir" pull --rebase "$remote" "$branch" >/dev/null 2>&1 || true
+  if ! git -C "$dir" pull --ff-only "$remote" "$branch" >/dev/null 2>&1; then
+    warn "$dir 无法 fast-forward 到 $remote/$branch（按约束不允许 rebase/merge），本次跳过"
+    return 1
+  fi
+  return 0
 }
 
 commit_and_push_if_staged() {
@@ -204,11 +209,18 @@ main() {
     info "处理一级子模块：$sm"
 
     ensure_git_repo "$root/$sm"
-    checkout_main_or_die "$root/$sm" "$SUB_REMOTE" "$SUB_BRANCH"
-    pull_rebase_best_effort "$root/$sm" "$SUB_REMOTE" "$SUB_BRANCH"
+    if ! checkout_main_or_die "$root/$sm" "$SUB_REMOTE" "$SUB_BRANCH"; then
+      warn "[$sm] checkout 失败，本次跳过"
+      continue
+    fi
+    if ! pull_ff_only_or_skip "$root/$sm" "$SUB_REMOTE" "$SUB_BRANCH"; then
+      continue
+    fi
 
     # 这里允许“仅二级子模块指针变化”，以便把 gitlink 更新提交到一级子模块
-    ensure_only_submodule_pointer_changes_or_die "$root/$sm"
+    if ! ensure_only_submodule_pointer_changes_or_skip "$root/$sm"; then
+      continue
+    fi
 
     local nested_bumped=()
     while IFS= read -r np; do
@@ -234,8 +246,8 @@ main() {
   done
 
   # 2) 回到根仓库：提交一级子模块指针更新
-  checkout_main_or_die "$root" "$ROOT_REMOTE" "$ROOT_BRANCH"
-  pull_rebase_best_effort "$root" "$ROOT_REMOTE" "$ROOT_BRANCH"
+  checkout_main_or_die "$root" "$ROOT_REMOTE" "$ROOT_BRANCH" || true
+  pull_ff_only_or_skip "$root" "$ROOT_REMOTE" "$ROOT_BRANCH" || true
 
   # 根仓库允许有自己的文件改动，但本脚本只自动提交“一级子模块指针更新”
   local bumped_top=()
