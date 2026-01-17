@@ -55,18 +55,21 @@ ensure_git_repo() {
 checkout_main_or_die() {
   local dir="$1"
   local remote="$2"
-  local branch="$3"
+  local branch="${3:-}"
+  if [[ -z "$branch" ]]; then
+    die "函数 checkout_main_or_die 在 $dir 缺少分支参数"
+  fi
 
   ensure_git_repo "$dir"
   cleanup_git_lock_if_any "$dir"
 
-  git -C "$dir" fetch "$remote" "$branch" >/dev/null 2>&1 || true
+  git -C "$dir" fetch "$remote" "${branch}" >/dev/null 2>&1 || true
 
-  if git -C "$dir" show-ref --verify --quiet "refs/heads/$branch"; then
-    git -C "$dir" checkout "$branch" >/dev/null 2>&1
+  if git -C "$dir" show-ref --verify --quiet "refs/heads/${branch}"; then
+    git -C "$dir" checkout "${branch}" >/dev/null 2>&1
   else
-    git -C "$dir" checkout -b "$branch" "$remote/$branch" >/dev/null 2>&1 \
-      || die "无法在 $dir 切到 $remote/$branch（远端分支可能不存在或无权限）"
+    git -C "$dir" checkout -b "${branch}" "${remote}/${branch}" >/dev/null 2>&1 \
+      || die "无法在 $dir 切到 ${remote}/${branch}（远端分支可能不存在或无权限）"
   fi
 
   local cur
@@ -99,8 +102,12 @@ ensure_worktree_clean_or_die() {
 commit_and_push_if_staged() {
   local dir="$1"
   local remote="$2"
-  local branch="$3"
+  local branch="${3:-}"
   local msg="$4"
+
+  if [[ -z "$branch" ]]; then
+    die "函数 commit_and_push_if_staged 在 $dir 缺少分支参数"
+  fi
 
   ensure_git_repo "$dir"
 
@@ -110,7 +117,7 @@ commit_and_push_if_staged() {
   fi
 
   git -C "$dir" commit -m "$msg"
-  git -C "$dir" push "$remote" "$branch"
+  git -C "$dir" push "$remote" "${branch}"
 }
 
 main() {
